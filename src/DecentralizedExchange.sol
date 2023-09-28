@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.19;
+pragma solidity 0.8.19;
 
 import { OwnableUpgradeable } from "@openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable {
+    event LogCreateOrder(address indexed account, uint256 indexed marketId, uint256 orderId);
+
+    function initialize() external initializer {
+        __Ownable_init();
+    }
+
     function foo() external pure returns (uint256 bar) {
         bar = 4;
     }
