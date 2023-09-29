@@ -22,9 +22,9 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
         // Instantiate the contract-under-test.
         dexImplementation = new DecentralizedExchange();
 
-        DecentralizedExchange dexImplementation = new DecentralizedExchange();
+        dexImplementation = new DecentralizedExchange();
         bytes memory proxyCallData = abi.encodeWithSelector(dexImplementation.initialize.selector);
-        dexProxy = DecentralizedExchange(address(new ERC1967Proxy(address(dexImplementation), proxyCallData)));
+        dexProxy = DecentralizedExchange(payable(address(new ERC1967Proxy(address(dexImplementation), proxyCallData))));
     }
 
     /// @dev Basic test. Run it with `forge test -vvv` to see the console log.

@@ -13,8 +13,8 @@ contract Deploy is BaseScript {
         (bool success,) = address(dexImplementation).call(initializeData);
         require(success, "dexImplementation.initialize failed");
 
-        DecentralizedExchange dexProxy =
-            DecentralizedExchange(payable(address(new ERC1967Proxy(address(dexImplementation), initializeData))));
+        DecentralizedExchange dexProxy = DecentralizedExchange(payable(vm.envAddress("DEX_PROXY")));
+        dexProxy.upgradeTo(address(dexImplementation));
 
         return (dexImplementation, dexProxy);
     }
