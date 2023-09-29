@@ -44,9 +44,8 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
         view
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        (address account, uint128 marketId) =
-            (address(uint160(uint256(log.topics[1]))), uint128(uint256(log.topics[2])));
-        bytes memory extraData = abi.encode(account, marketId);
+        (address account, uint256 marketId) = (address(uint160(uint256(log.topics[1]))), uint256(log.topics[2]));
+        bytes memory extraData = abi.encode(account, uint128(marketId));
 
         uint256 settlementTimestamp = accountOrders[account][marketId].settlementTimestamp;
 
@@ -99,6 +98,13 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
         accountOrders[msg.sender][payload.marketId] = order;
 
         emit LogCreateOrder(msg.sender, payload.marketId);
+    }
+
+    function cancelOrder(uint128 marketId) external {
+        _requireMarketIsValid(marketId);
+
+        MarketOrder.Data storage order = accountOrders[msg.sender][marketId];
+        order.isActive = false;
     }
 
     function _bundleReport(bytes memory report) internal view returns (bytes memory) {
