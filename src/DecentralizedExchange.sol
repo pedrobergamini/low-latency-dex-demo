@@ -7,32 +7,14 @@ import { UUPSUpgradeable } from "@openzeppelin-upgradeable/proxy/utils/UUPSUpgra
 
 // Project dependencies
 import { ILogAutomation, Log } from "./chainlink/interfaces/ILogAutomation.sol";
-import { IStreamsLookupCompatible } from "./chainlink/interfaces/IStreamsLookupCompatible.sol";
+import { IStreamsLookupCompatible, BasicReport, Quote } from "./chainlink/interfaces/IStreamsLookupCompatible.sol";
 import { IVerifierProxy } from "./chainlink/interfaces/IVerifierProxy.sol";
-
-/// @notice Basic feed report struct
-/// @param feedId The feed ID the report has data for
-/// @param lowerTimestamp Lower timestamp for validity of report
-/// @param observationsTimestamp The time the median value was observed on
-/// @param nativeFee Base ETH/WETH fee to verify report
-/// @param linkFee Base LINK fee to verify report
-/// @param upperTimestamp Upper timestamp for validity of report
-/// @param benchmark The median value agreed in an OCR round
-struct BasicReport {
-    bytes32 feedId;
-    uint32 lowerTimestamp;
-    uint32 observationsTimestamp;
-    uint192 nativeFee;
-    uint192 linkFee;
-    uint64 upperTimestamp;
-    int192 benchmark;
-}
-
-struct Quote {
-    address quoteAddress;
-}
+import { MarketOrder } from "./types/MarketOrder.sol";
+import { Position } from "./types/Position.sol";
 
 contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutomation, IStreamsLookupCompatible {
+    using Position for Position.Data;
+
     event LogCreateOrder(address indexed account, uint256 indexed marketId, uint256 orderId);
 
     address public constant FEE_ADDRESS = 0xe39Ab88f8A4777030A534146A9Ca3B52bd5D43A3;
@@ -40,6 +22,9 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
     string public constant STRING_DATASTREAMS_FEEDLABEL = "feedIDs";
     string public constant STRING_DATASTREAMS_QUERYLABEL = "timestamp";
     string[] public feedsHex = ["0x00023496426b520583ae20a66d80484e0fc18544866a5b0bfee15ec771963274"];
+
+    mapping(address account => mapping(uint256 marketId => MarketOrder.Data)) public accountOrders;
+    mapping(address account => mapping(uint256 marketId => Position.Data)) public accountPositions;
 
     receive() external payable { }
 
@@ -74,18 +59,17 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
 
         bytes memory report = signedReports[0];
 
-        // Add quote to the report and retrieve data
         bytes memory bundledReport = _bundleReport(report);
         BasicReport memory unverifiedReport = _getReportData(report);
 
-        // Verify the report
         bytes memory verifiedReportData = verifier.verify{ value: unverifiedReport.nativeFee }(bundledReport);
 
-        // Decode verified report data into BasicReport struct
         BasicReport memory verifiedReport = abi.decode(verifiedReportData, (BasicReport));
 
-        // order.settle();
+        // position.settleOrder(order, verifiedReport);
     }
+
+    function createOrder(MarketOrder.Payload calldata payload) external { }
 
     function _bundleReport(bytes memory report) internal view returns (bytes memory) {
         Quote memory quote;
