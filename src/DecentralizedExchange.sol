@@ -22,6 +22,7 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
     IVerifierProxy public constant verifier = IVerifierProxy(0xea9B98Be000FBEA7f6e88D08ebe70EbaAD10224c);
 
     uint128 public constant ETH_USD_MARKET_ID = 1;
+    uint256 public constant SETTLEMENT_DELAY = 15 seconds;
     string public constant STRING_DATASTREAMS_FEEDLABEL = "feedIDs";
     string public constant STRING_DATASTREAMS_QUERYLABEL = "timestamp";
     string[] public feedsHex = ["0x00023496426b520583ae20a66d80484e0fc18544866a5b0bfee15ec771963274"];
@@ -43,7 +44,15 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
         view
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        revert StreamsLookup(STRING_DATASTREAMS_FEEDLABEL, feedsHex, STRING_DATASTREAMS_QUERYLABEL, log.timestamp, "");
+        (address account, uint128 marketId) =
+            (address(uint160(uint256(log.topics[1]))), uint128(uint256(log.topics[2])));
+        bytes memory extraData = abi.encode(account, marketId);
+
+        uint256 settlementTimestamp = accountOrders[account][marketId].settlementTimestamp;
+
+        revert StreamsLookup(
+            STRING_DATASTREAMS_FEEDLABEL, feedsHex, STRING_DATASTREAMS_QUERYLABEL, settlementTimestamp, extraData
+        );
     }
 
     function checkCallback(
@@ -69,7 +78,11 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
 
         BasicReport memory verifiedReport = abi.decode(verifiedReportData, (BasicReport));
 
-        // position.settleOrder(order, verifiedReport);
+        (address account, uint128 marketId) = abi.decode(extraData, (address, uint128));
+        MarketOrder.Data storage order = accountOrders[account][marketId];
+        Position.Data storage position = accountPositions[account][marketId];
+
+        position.settleOrder(order, verifiedReport);
     }
 
     function createOrder(MarketOrder.Payload calldata payload) external {
@@ -77,8 +90,11 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
         _requireNoActiveOrder(storedOrder);
         _requireMarketIsValid(payload.marketId);
 
-        MarketOrder.Data memory order =
-            MarketOrder.Data({ payload: payload, settlementTimestamp: uint120(block.timestamp), isActive: true });
+        MarketOrder.Data memory order = MarketOrder.Data({
+            payload: payload,
+            settlementTimestamp: uint120(block.timestamp + SETTLEMENT_DELAY),
+            isActive: true
+        });
 
         accountOrders[msg.sender][payload.marketId] = order;
 

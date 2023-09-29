@@ -37,11 +37,11 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
     }
 
     /// @dev Basic test. Run it with `forge test -vvv` to see the console log.
-    function testFuzz_CreateOrder(int128 initialMarginDelta, int128 sizeDelta, uint128 acceptablePrice) external {
-        vm.assume(initialMarginDelta != 0 && acceptablePrice != 0 && sizeDelta != 0);
+    function testFuzz_CreateOrder(uint128 newInitialMargin, int128 sizeDelta, uint128 acceptablePrice) external {
+        vm.assume(newInitialMargin != 0 && acceptablePrice != 0 && sizeDelta != 0);
         MarketOrder.Payload memory payload = MarketOrder.Payload({
             marketId: ETH_USD_MARKET_ID,
-            initialMarginDelta: initialMarginDelta,
+            newInitialMargin: newInitialMargin,
             sizeDelta: sizeDelta,
             acceptablePrice: acceptablePrice
         });
@@ -53,16 +53,16 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
     }
 
     function testFuzz_RevertWhen_CreatesOrderWithActiveOrder(
-        int128 initialMarginDelta,
+        uint128 newInitialMargin,
         int128 sizeDelta,
         uint128 acceptablePrice
     )
         external
     {
-        vm.assume(initialMarginDelta != 0 && acceptablePrice != 0 && sizeDelta != 0);
+        vm.assume(newInitialMargin != 0 && acceptablePrice != 0 && sizeDelta != 0);
         MarketOrder.Payload memory payload = MarketOrder.Payload({
             marketId: ETH_USD_MARKET_ID,
-            initialMarginDelta: initialMarginDelta,
+            newInitialMargin: newInitialMargin,
             sizeDelta: sizeDelta,
             acceptablePrice: acceptablePrice
         });
@@ -74,18 +74,18 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
     }
 
     function testFuzz_RevertWhen_CreatesOrderWithInvalidMarketId(
-        int128 initialMarginDelta,
+        uint128 newInitialMargin,
         int128 sizeDelta,
         uint128 acceptablePrice
     )
         external
     {
-        vm.assume(initialMarginDelta != 0 && acceptablePrice != 0 && sizeDelta != 0);
+        vm.assume(newInitialMargin != 0 && acceptablePrice != 0 && sizeDelta != 0);
 
         uint128 invalidMarketId = 2;
         MarketOrder.Payload memory payload = MarketOrder.Payload({
             marketId: invalidMarketId,
-            initialMarginDelta: initialMarginDelta,
+            newInitialMargin: newInitialMargin,
             sizeDelta: sizeDelta,
             acceptablePrice: acceptablePrice
         });

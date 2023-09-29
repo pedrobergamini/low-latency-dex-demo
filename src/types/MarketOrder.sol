@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 library MarketOrder {
     struct Payload {
         uint128 marketId;
-        int128 initialMarginDelta;
+        uint128 newInitialMargin;
         int128 sizeDelta;
         uint128 acceptablePrice;
     }
@@ -13,5 +13,9 @@ library MarketOrder {
         Payload payload;
         uint120 settlementTimestamp;
         bool isActive;
+    }
+
+    function fulfill(Data storage self) internal {
+        self.isActive = false;
     }
 }
