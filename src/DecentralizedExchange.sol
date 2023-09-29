@@ -11,14 +11,17 @@ import { IStreamsLookupCompatible, BasicReport, Quote } from "./chainlink/interf
 import { IVerifierProxy } from "./chainlink/interfaces/IVerifierProxy.sol";
 import { MarketOrder } from "./types/MarketOrder.sol";
 import { Position } from "./types/Position.sol";
+import { Errors } from "./utils/Errors.sol";
 
 contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutomation, IStreamsLookupCompatible {
     using Position for Position.Data;
 
-    event LogCreateOrder(address indexed account, uint256 indexed marketId, uint256 orderId);
+    event LogCreateOrder(address indexed account, uint256 indexed marketId);
 
     address public constant FEE_ADDRESS = 0xe39Ab88f8A4777030A534146A9Ca3B52bd5D43A3;
     IVerifierProxy public constant verifier = IVerifierProxy(0xea9B98Be000FBEA7f6e88D08ebe70EbaAD10224c);
+
+    uint128 public constant ETH_USD_MARKET_ID = 1;
     string public constant STRING_DATASTREAMS_FEEDLABEL = "feedIDs";
     string public constant STRING_DATASTREAMS_QUERYLABEL = "timestamp";
     string[] public feedsHex = ["0x00023496426b520583ae20a66d80484e0fc18544866a5b0bfee15ec771963274"];
@@ -69,7 +72,18 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
         // position.settleOrder(order, verifiedReport);
     }
 
-    function createOrder(MarketOrder.Payload calldata payload) external { }
+    function createOrder(MarketOrder.Payload calldata payload) external {
+        MarketOrder.Data storage storedOrder = accountOrders[msg.sender][payload.marketId];
+        _requireNoActiveOrder(storedOrder);
+        _requireMarketIsValid(payload.marketId);
+
+        MarketOrder.Data memory order =
+            MarketOrder.Data({ payload: payload, settlementTimestamp: uint120(block.timestamp), isActive: true });
+
+        accountOrders[msg.sender][payload.marketId] = order;
+
+        emit LogCreateOrder(msg.sender, payload.marketId);
+    }
 
     function _bundleReport(bytes memory report) internal view returns (bytes memory) {
         Quote memory quote;
@@ -90,6 +104,18 @@ contract DecentralizedExchange is UUPSUpgradeable, OwnableUpgradeable, ILogAutom
 
         BasicReport memory report = abi.decode(reportData, (BasicReport));
         return report;
+    }
+
+    function _requireNoActiveOrder(MarketOrder.Data storage storedOrder) internal view {
+        if (storedOrder.isActive) {
+            revert Errors.DuplicateOrder(msg.sender);
+        }
+    }
+
+    function _requireMarketIsValid(uint128 marketId) internal view {
+        if (marketId != ETH_USD_MARKET_ID) {
+            revert Errors.MarketNotSupported(msg.sender, marketId);
+        }
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner { }

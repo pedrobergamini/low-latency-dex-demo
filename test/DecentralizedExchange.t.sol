@@ -7,13 +7,19 @@ import { StdCheats } from "forge-std/StdCheats.sol";
 
 import { ERC1967Proxy } from "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
-import { DecentralizedExchange } from "src/DecentralizedExchange.sol";
-
-interface IERC20 {
-    function balanceOf(address account) external view returns (uint256);
-}
+import { DecentralizedExchange, MarketOrder } from "src/DecentralizedExchange.sol";
+import { Errors } from "src/utils/Errors.sol";
 
 contract DecentralizedExchangeTest is PRBTest, StdCheats {
+    error DuplicateOrder(address account);
+    error MarketNotSupported(address account, uint128 marketId);
+
+    event LogCreateOrder(address indexed account, uint256 indexed marketId);
+
+    uint128 internal constant ETH_USD_MARKET_ID = 1;
+
+    address internal trader = makeAddr("trader");
+
     DecentralizedExchange dexImplementation;
     DecentralizedExchange dexProxy;
 
@@ -25,33 +31,66 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
         dexImplementation = new DecentralizedExchange();
         bytes memory proxyCallData = abi.encodeWithSelector(dexImplementation.initialize.selector);
         dexProxy = DecentralizedExchange(payable(address(new ERC1967Proxy(address(dexImplementation), proxyCallData))));
+
+        vm.deal({ account: trader, newBalance: 100 ether });
+        vm.startPrank(trader);
     }
 
     /// @dev Basic test. Run it with `forge test -vvv` to see the console log.
-    function test_Example() external {
-        console2.log("Hello World");
-        // uint256 x = 42;
-        // assertEq(foo.id(x), x, "value mismatch");
+    function testFuzz_CreateOrder(int128 initialMarginDelta, int128 sizeDelta, uint128 acceptablePrice) external {
+        vm.assume(initialMarginDelta != 0 && acceptablePrice != 0 && sizeDelta != 0);
+        MarketOrder.Payload memory payload = MarketOrder.Payload({
+            marketId: ETH_USD_MARKET_ID,
+            initialMarginDelta: initialMarginDelta,
+            sizeDelta: sizeDelta,
+            acceptablePrice: acceptablePrice
+        });
+
+        vm.expectEmit(address(dexProxy));
+        emit LogCreateOrder(trader, payload.marketId);
+
+        dexProxy.createOrder(payload);
     }
 
-    function testFuzz_Example(uint256 x) external {
-        // vm.assume(x != 0); // or x = bound(x, 1, 100)
-        // assertEq(foo.id(x), x, "value mismatch");
+    function testFuzz_RevertWhen_CreatesOrderWithActiveOrder(
+        int128 initialMarginDelta,
+        int128 sizeDelta,
+        uint128 acceptablePrice
+    )
+        external
+    {
+        vm.assume(initialMarginDelta != 0 && acceptablePrice != 0 && sizeDelta != 0);
+        MarketOrder.Payload memory payload = MarketOrder.Payload({
+            marketId: ETH_USD_MARKET_ID,
+            initialMarginDelta: initialMarginDelta,
+            sizeDelta: sizeDelta,
+            acceptablePrice: acceptablePrice
+        });
+
+        dexProxy.createOrder(payload);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.DuplicateOrder.selector, trader));
+        dexProxy.createOrder(payload);
     }
 
-    function testFork_Example() external {
-        // // Silently pass this test if there is no API key.
-        // string memory alchemyApiKey = vm.envOr("API_KEY_ALCHEMY", string(""));
-        // if (bytes(alchemyApiKey).length == 0) {
-        //     return;
-        // }
+    function testFuzz_RevertWhen_CreatesOrderWithInvalidMarketId(
+        int128 initialMarginDelta,
+        int128 sizeDelta,
+        uint128 acceptablePrice
+    )
+        external
+    {
+        vm.assume(initialMarginDelta != 0 && acceptablePrice != 0 && sizeDelta != 0);
 
-        // // Otherwise, run the test against the mainnet fork.
-        // vm.createSelectFork({ urlOrAlias: "mainnet", blockNumber: 16_428_000 });
-        // address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        // address holder = 0x7713974908Be4BEd47172370115e8b1219F4A5f0;
-        // uint256 actualBalance = IERC20(usdc).balanceOf(holder);
-        // uint256 expectedBalance = 196_307_713.810457e6;
-        // assertEq(actualBalance, expectedBalance);
+        uint128 invalidMarketId = 2;
+        MarketOrder.Payload memory payload = MarketOrder.Payload({
+            marketId: invalidMarketId,
+            initialMarginDelta: initialMarginDelta,
+            sizeDelta: sizeDelta,
+            acceptablePrice: acceptablePrice
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.MarketNotSupported.selector, trader, invalidMarketId));
+        dexProxy.createOrder(payload);
     }
 }
