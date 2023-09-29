@@ -6,7 +6,6 @@ library MarketOrder {
         uint128 marketId;
         uint128 newInitialMargin;
         int128 sizeDelta;
-        uint128 acceptablePrice;
     }
 
     struct Data {

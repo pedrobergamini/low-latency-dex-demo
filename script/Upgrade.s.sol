@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { ERC1967Proxy } from "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { DecentralizedExchange } from "src/DecentralizedExchange.sol";
 import { BaseScript } from "./Base.s.sol";
 

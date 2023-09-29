@@ -37,13 +37,12 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
     }
 
     /// @dev Basic test. Run it with `forge test -vvv` to see the console log.
-    function testFuzz_CreateOrder(uint128 newInitialMargin, int128 sizeDelta, uint128 acceptablePrice) external {
-        vm.assume(newInitialMargin != 0 && acceptablePrice != 0 && sizeDelta != 0);
+    function testFuzz_CreateOrder(uint128 newInitialMargin, int128 sizeDelta) external {
+        vm.assume(newInitialMargin != 0 && sizeDelta != 0);
         MarketOrder.Payload memory payload = MarketOrder.Payload({
             marketId: ETH_USD_MARKET_ID,
             newInitialMargin: newInitialMargin,
-            sizeDelta: sizeDelta,
-            acceptablePrice: acceptablePrice
+            sizeDelta: sizeDelta
         });
 
         vm.expectEmit(address(dexProxy));
@@ -52,19 +51,12 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
         dexProxy.createOrder(payload);
     }
 
-    function testFuzz_RevertWhen_CreatesOrderWithActiveOrder(
-        uint128 newInitialMargin,
-        int128 sizeDelta,
-        uint128 acceptablePrice
-    )
-        external
-    {
-        vm.assume(newInitialMargin != 0 && acceptablePrice != 0 && sizeDelta != 0);
+    function testFuzz_RevertWhen_CreatesOrderWithActiveOrder(uint128 newInitialMargin, int128 sizeDelta) external {
+        vm.assume(newInitialMargin != 0 && sizeDelta != 0);
         MarketOrder.Payload memory payload = MarketOrder.Payload({
             marketId: ETH_USD_MARKET_ID,
             newInitialMargin: newInitialMargin,
-            sizeDelta: sizeDelta,
-            acceptablePrice: acceptablePrice
+            sizeDelta: sizeDelta
         });
 
         dexProxy.createOrder(payload);
@@ -73,22 +65,12 @@ contract DecentralizedExchangeTest is PRBTest, StdCheats {
         dexProxy.createOrder(payload);
     }
 
-    function testFuzz_RevertWhen_CreatesOrderWithInvalidMarketId(
-        uint128 newInitialMargin,
-        int128 sizeDelta,
-        uint128 acceptablePrice
-    )
-        external
-    {
-        vm.assume(newInitialMargin != 0 && acceptablePrice != 0 && sizeDelta != 0);
+    function testFuzz_RevertWhen_CreatesOrderWithInvalidMarketId(uint128 newInitialMargin, int128 sizeDelta) external {
+        vm.assume(newInitialMargin != 0 && sizeDelta != 0);
 
         uint128 invalidMarketId = 2;
-        MarketOrder.Payload memory payload = MarketOrder.Payload({
-            marketId: invalidMarketId,
-            newInitialMargin: newInitialMargin,
-            sizeDelta: sizeDelta,
-            acceptablePrice: acceptablePrice
-        });
+        MarketOrder.Payload memory payload =
+            MarketOrder.Payload({ marketId: invalidMarketId, newInitialMargin: newInitialMargin, sizeDelta: sizeDelta });
 
         vm.expectRevert(abi.encodeWithSelector(Errors.MarketNotSupported.selector, trader, invalidMarketId));
         dexProxy.createOrder(payload);
